@@ -1,0 +1,524 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated Google account profile and active London Academy portal role.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the signed-in user."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name from Google Sign-In."
+        },
+        "email": {
+          "type": "string",
+          "description": "Verified email address of the user."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Optional Google profile photo URL."
+        },
+        "activePortalRole": {
+          "type": "string",
+          "enum": ["ADMIN", "SUB_ADMIN", "EMPLOYEE", "STUDENT"],
+          "description": "Last selected London Academy portal role."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp() on creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp() on update."
+        }
+      },
+      "required": ["userId", "displayName", "email", "createdAt"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Campus branch location under the user's academy workspace.",
+      "type": "object",
+      "properties": {
+        "branchName": { "type": "string" },
+        "address": { "type": "string" },
+        "contactNo": { "type": "string" },
+        "addedBy": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["branchName", "addedBy", "createdAt"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Academy course offering with duration and default fees.",
+      "type": "object",
+      "properties": {
+        "courseName": { "type": "string" },
+        "defaultDuration": { "type": "string" },
+        "defaultFees": { "type": "number" },
+        "addedBy": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["courseName", "defaultDuration", "defaultFees", "addedBy", "createdAt"]
+    },
+    "Employee": {
+      "title": "Employee",
+      "description": "Staff profile (Sub-Admin, Teacher/Trainer, Office Boy, Cleaning Staff).",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "name": { "type": "string" },
+        "contactNo": { "type": "string" },
+        "email": { "type": "string" },
+        "department": { "type": "string" },
+        "branchName": { "type": "string" },
+        "dateOfJoining": { "type": "string" },
+        "canManageStudents": { "type": "boolean" },
+        "canViewFees": { "type": "boolean" },
+        "canMarkAttendance": { "type": "boolean" },
+        "photoUri": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "employeeId",
+        "name",
+        "department",
+        "branchName",
+        "dateOfJoining",
+        "canManageStudents",
+        "canViewFees",
+        "canMarkAttendance",
+        "createdAt"
+      ]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Enrolled student record with branch, batch, course duration, and fee summary.",
+      "type": "object",
+      "properties": {
+        "admissionNo": { "type": "string" },
+        "name": { "type": "string" },
+        "contactNo": { "type": "string" },
+        "address": { "type": "string" },
+        "fatherName": { "type": "string" },
+        "motherName": { "type": "string" },
+        "studentPhotoUri": { "type": "string" },
+        "aadhaarCardUri": { "type": "string" },
+        "courseName": { "type": "string" },
+        "branchName": { "type": "string" },
+        "batchName": { "type": "string" },
+        "batchTiming": { "type": "string" },
+        "dateOfJoining": { "type": "string" },
+        "courseDuration": { "type": "string" },
+        "totalFees": { "type": "number" },
+        "paidFees": { "type": "number" },
+        "pendingFees": { "type": "number" },
+        "paymentPlan": { "type": "string" },
+        "installmentCount": { "type": "integer" },
+        "assignedTeacherId": { "type": "string" },
+        "assignedTeacherName": { "type": "string" },
+        "portalUserId": { "type": "string" },
+        "nextDueDate": { "type": "string" },
+        "monthlyFeeAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "COMPLETED"] },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "admissionNo",
+        "name",
+        "courseName",
+        "branchName",
+        "batchName",
+        "dateOfJoining",
+        "courseDuration",
+        "totalFees",
+        "paidFees",
+        "pendingFees",
+        "paymentPlan",
+        "installmentCount",
+        "assignedTeacherId",
+        "assignedTeacherName",
+        "portalUserId",
+        "status",
+        "createdAt"
+      ]
+    },
+    "EmployeeAttendance": {
+      "title": "EmployeeAttendance",
+      "description": "Daily staff attendance with GPS coordinates, live selfie reference, login and log out times.",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "department": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "status": { "type": "string", "enum": ["PRESENT", "ABSENT", "HALF_DAY", "LEAVE"] },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "distanceMeters": { "type": "number" },
+        "selfieUri": { "type": "string" },
+        "isMockLocation": { "type": "boolean" },
+        "deviceModel": { "type": "string" },
+        "checkOutTime": { "type": "string" },
+        "workedMinutes": { "type": "integer" },
+        "requiredMinutes": { "type": "integer" },
+        "notes": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "employeeId",
+        "employeeName",
+        "department",
+        "date",
+        "time",
+        "status",
+        "latitude",
+        "longitude",
+        "distanceMeters",
+        "isMockLocation",
+        "workedMinutes",
+        "requiredMinutes",
+        "createdAt"
+      ]
+    },
+    "StudentAttendance": {
+      "title": "StudentAttendance",
+      "description": "Student batch-wise or self GPS + photo attendance login and log out record.",
+      "type": "object",
+      "properties": {
+        "admissionNo": { "type": "string" },
+        "studentName": { "type": "string" },
+        "courseName": { "type": "string" },
+        "batchName": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string", "enum": ["PRESENT", "ABSENT", "HALF_DAY", "LEAVE"] },
+        "markedByUserId": { "type": "string" },
+        "checkInTime": { "type": "string" },
+        "checkOutTime": { "type": "string" },
+        "workedMinutes": { "type": "integer" },
+        "requiredMinutes": { "type": "integer" },
+        "notes": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "distanceMeters": { "type": "number" },
+        "selfieUri": { "type": "string" },
+        "isMockLocation": { "type": "boolean" },
+        "deviceModel": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "admissionNo",
+        "studentName",
+        "courseName",
+        "batchName",
+        "date",
+        "status",
+        "markedByUserId",
+        "workedMinutes",
+        "requiredMinutes",
+        "latitude",
+        "longitude",
+        "distanceMeters",
+        "isMockLocation",
+        "createdAt"
+      ]
+    },
+    "FeePayment": {
+      "title": "FeePayment",
+      "description": "Fee payment receipt record.",
+      "type": "object",
+      "properties": {
+        "receiptNo": { "type": "string" },
+        "admissionNo": { "type": "string" },
+        "studentName": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentDate": { "type": "string" },
+        "paymentMode": { "type": "string" },
+        "paymentPlan": { "type": "string" },
+        "installmentMonth": { "type": "string" },
+        "courseName": { "type": "string" },
+        "nextDueDate": { "type": "string" },
+        "collectedBy": { "type": "string" },
+        "remarks": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "receiptNo",
+        "admissionNo",
+        "studentName",
+        "amount",
+        "paymentDate",
+        "paymentMode",
+        "paymentPlan",
+        "collectedBy",
+        "createdAt"
+      ]
+    },
+    "FeeInstallment": {
+      "title": "FeeInstallment",
+      "description": "Scheduled student fee installment record.",
+      "type": "object",
+      "properties": {
+        "admissionNo": { "type": "string" },
+        "studentName": { "type": "string" },
+        "courseName": { "type": "string" },
+        "monthName": { "type": "string" },
+        "installmentNumber": { "type": "integer" },
+        "dueDate": { "type": "string" },
+        "installmentAmount": { "type": "number" },
+        "amountPaid": { "type": "number" },
+        "remainingAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["PAID", "PARTIAL", "PENDING", "OVERDUE"] },
+        "paymentMode": { "type": "string" },
+        "lastPaymentDate": { "type": "string" },
+        "remarks": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "admissionNo",
+        "studentName",
+        "courseName",
+        "monthName",
+        "installmentNumber",
+        "dueDate",
+        "installmentAmount",
+        "amountPaid",
+        "remainingAmount",
+        "status",
+        "createdAt"
+      ]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "Academy announcement or fee reminder notification.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "category": { "type": "string" },
+        "targetType": { "type": "string" },
+        "targetValue": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "sentBy": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["title", "message", "category", "targetType", "date", "time", "sentBy", "createdAt"]
+    },
+    "Holiday": {
+      "title": "Holiday",
+      "description": "Institute holiday calendar entry.",
+      "type": "object",
+      "properties": {
+        "holidayName": { "type": "string" },
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["holidayName", "date", "createdAt"]
+    },
+    "OfficeSettings": {
+      "title": "OfficeSettings",
+      "description": "Campus geofence location, radius, weekly off, and standard shift hours.",
+      "type": "object",
+      "properties": {
+        "officeName": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "allowedRadiusMeters": { "type": "number" },
+        "weeklyOff": { "type": "string", "enum": ["SUNDAY", "SAT_SUN"] },
+        "standardDailyHours": { "type": "number" },
+        "standardStudentDailyHours": { "type": "number" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "officeName",
+        "latitude",
+        "longitude",
+        "allowedRadiusMeters",
+        "weeklyOff",
+        "standardDailyHours",
+        "standardStudentDailyHours",
+        "createdAt"
+      ]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable activity audit log entry.",
+      "type": "object",
+      "properties": {
+        "actorId": { "type": "string" },
+        "role": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "deviceInfo": { "type": "string" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["actorId", "role", "action", "details", "date", "time", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated user account profile."
+    },
+    "/users/{userId}/branches/{branchId}": {
+      "schema": { "$ref": "#/entities/Branch" },
+      "description": "Branches configured in the user's academy workspace."
+    },
+    "/users/{userId}/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Courses configured in the user's academy workspace."
+    },
+    "/users/{userId}/employees/{employeeId}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Staff records owned by the signed-in user workspace."
+    },
+    "/users/{userId}/students/{studentId}": {
+      "schema": { "$ref": "#/entities/Student" },
+      "description": "Student records owned by the signed-in user workspace."
+    },
+    "/users/{userId}/employee_attendance/{recordId}": {
+      "schema": { "$ref": "#/entities/EmployeeAttendance" },
+      "description": "Staff daily GPS + photo attendance records."
+    },
+    "/users/{userId}/student_attendance/{recordId}": {
+      "schema": { "$ref": "#/entities/StudentAttendance" },
+      "description": "Student batch and self GPS + photo attendance records."
+    },
+    "/users/{userId}/fee_payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/FeePayment" },
+      "description": "Student fee payment receipts."
+    },
+    "/users/{userId}/fee_installments/{installmentId}": {
+      "schema": { "$ref": "#/entities/FeeInstallment" },
+      "description": "Student fee installment schedule records."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/AppNotification" },
+      "description": "Institute announcements and fee reminders."
+    },
+    "/users/{userId}/holidays/{holidayId}": {
+      "schema": { "$ref": "#/entities/Holiday" },
+      "description": "Institute holidays."
+    },
+    "/users/{userId}/office_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/OfficeSettings" },
+      "description": "Office geofence and working hours configuration."
+    },
+    "/users/{userId}/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Append-only immutable audit trail."
+    }
+  }
+}

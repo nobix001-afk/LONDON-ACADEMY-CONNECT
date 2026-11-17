@@ -1,0 +1,441 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core helper primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || data[key] == null || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    // Entity validation helpers
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 120 &&
+             isOptionalString(data, 'photoUrl', 500) &&
+             (!('activePortalRole' in data) || data.activePortalRole == null || data.activePortalRole in ['ADMIN', 'SUB_ADMIN', 'EMPLOYEE', 'STUDENT']) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidBranch(data) {
+      return data.branchName is string && data.branchName.size() >= 1 && data.branchName.size() <= 100 &&
+             data.addedBy is string && data.addedBy.size() >= 1 && data.addedBy.size() <= 80 &&
+             isOptionalString(data, 'address', 300) &&
+             isOptionalString(data, 'contactNo', 30) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidCourse(data) {
+      return data.courseName is string && data.courseName.size() >= 1 && data.courseName.size() <= 120 &&
+             data.defaultDuration is string && data.defaultDuration.size() >= 1 && data.defaultDuration.size() <= 40 &&
+             data.defaultFees is number && data.defaultFees >= 0 &&
+             data.addedBy is string && data.addedBy.size() >= 1 && data.addedBy.size() <= 80 &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidEmployee(data) {
+      return data.employeeId is string && data.employeeId.size() >= 1 && data.employeeId.size() <= 80 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.department is string && data.department.size() >= 1 && data.department.size() <= 80 &&
+             data.branchName is string && data.branchName.size() >= 1 && data.branchName.size() <= 100 &&
+             data.dateOfJoining is string && data.dateOfJoining.size() >= 1 && data.dateOfJoining.size() <= 20 &&
+             data.canManageStudents is bool &&
+             data.canViewFees is bool &&
+             data.canMarkAttendance is bool &&
+             isOptionalString(data, 'contactNo', 30) &&
+             isOptionalString(data, 'email', 120) &&
+             isOptionalString(data, 'photoUri', 500) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidStudent(data) {
+      return data.admissionNo is string && data.admissionNo.size() >= 1 && data.admissionNo.size() <= 60 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.courseName is string && data.courseName.size() >= 1 && data.courseName.size() <= 120 &&
+             data.branchName is string && data.branchName.size() >= 1 && data.branchName.size() <= 100 &&
+             data.batchName is string && data.batchName.size() >= 1 && data.batchName.size() <= 80 &&
+             data.dateOfJoining is string && data.dateOfJoining.size() >= 1 && data.dateOfJoining.size() <= 20 &&
+             data.courseDuration is string && data.courseDuration.size() >= 1 && data.courseDuration.size() <= 40 &&
+             data.totalFees is number && data.totalFees >= 0 &&
+             data.paidFees is number && data.paidFees >= 0 &&
+             data.pendingFees is number && data.pendingFees >= 0 &&
+             data.paymentPlan is string && data.paymentPlan.size() >= 1 && data.paymentPlan.size() <= 40 &&
+             data.installmentCount is int && data.installmentCount >= 1 && data.installmentCount <= 60 &&
+             data.assignedTeacherId is string && data.assignedTeacherId.size() >= 1 && data.assignedTeacherId.size() <= 80 &&
+             data.assignedTeacherName is string && data.assignedTeacherName.size() >= 1 && data.assignedTeacherName.size() <= 100 &&
+             data.portalUserId is string && data.portalUserId.size() >= 1 && data.portalUserId.size() <= 80 &&
+             data.status is string && data.status in ['ACTIVE', 'INACTIVE', 'COMPLETED'] &&
+             isOptionalString(data, 'contactNo', 30) &&
+             isOptionalString(data, 'address', 300) &&
+             isOptionalString(data, 'fatherName', 100) &&
+             isOptionalString(data, 'motherName', 100) &&
+             isOptionalString(data, 'studentPhotoUri', 500) &&
+             isOptionalString(data, 'aadhaarCardUri', 500) &&
+             isOptionalString(data, 'batchTiming', 60) &&
+             isOptionalString(data, 'nextDueDate', 20) &&
+             (!('monthlyFeeAmount' in data) || data.monthlyFeeAmount == null || (data.monthlyFeeAmount is number && data.monthlyFeeAmount >= 0)) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidEmployeeAttendance(data) {
+      return data.employeeId is string && data.employeeId.size() >= 1 && data.employeeId.size() <= 80 &&
+             data.employeeName is string && data.employeeName.size() >= 1 && data.employeeName.size() <= 100 &&
+             data.department is string && data.department.size() >= 1 && data.department.size() <= 80 &&
+             data.date is string && data.date.size() >= 1 && data.date.size() <= 20 &&
+             data.time is string && data.time.size() <= 20 &&
+             data.status is string && data.status in ['PRESENT', 'ABSENT', 'HALF_DAY', 'LEAVE'] &&
+             data.latitude is number &&
+             data.longitude is number &&
+             data.distanceMeters is number && data.distanceMeters >= 0 &&
+             data.isMockLocation is bool &&
+             data.workedMinutes is int && data.workedMinutes >= 0 &&
+             data.requiredMinutes is int && data.requiredMinutes >= 0 &&
+             isOptionalString(data, 'selfieUri', 500) &&
+             isOptionalString(data, 'deviceModel', 120) &&
+             isOptionalString(data, 'checkOutTime', 20) &&
+             isOptionalString(data, 'notes', 300) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidStudentAttendance(data) {
+      return data.admissionNo is string && data.admissionNo.size() >= 1 && data.admissionNo.size() <= 60 &&
+             data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 100 &&
+             data.courseName is string && data.courseName.size() >= 1 && data.courseName.size() <= 120 &&
+             data.batchName is string && data.batchName.size() >= 1 && data.batchName.size() <= 80 &&
+             data.date is string && data.date.size() >= 1 && data.date.size() <= 20 &&
+             data.status is string && data.status in ['PRESENT', 'ABSENT', 'HALF_DAY', 'LEAVE'] &&
+             data.markedByUserId is string && data.markedByUserId.size() >= 1 && data.markedByUserId.size() <= 80 &&
+             data.workedMinutes is int && data.workedMinutes >= 0 &&
+             data.requiredMinutes is int && data.requiredMinutes >= 0 &&
+             data.latitude is number &&
+             data.longitude is number &&
+             data.distanceMeters is number && data.distanceMeters >= 0 &&
+             data.isMockLocation is bool &&
+             isOptionalString(data, 'checkInTime', 20) &&
+             isOptionalString(data, 'checkOutTime', 20) &&
+             isOptionalString(data, 'notes', 300) &&
+             isOptionalString(data, 'selfieUri', 500) &&
+             isOptionalString(data, 'deviceModel', 120) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidFeePayment(data) {
+      return data.receiptNo is string && data.receiptNo.size() >= 1 && data.receiptNo.size() <= 60 &&
+             data.admissionNo is string && data.admissionNo.size() >= 1 && data.admissionNo.size() <= 60 &&
+             data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 100 &&
+             data.amount is number && data.amount > 0 &&
+             data.paymentDate is string && data.paymentDate.size() >= 1 && data.paymentDate.size() <= 20 &&
+             data.paymentMode is string && data.paymentMode.size() >= 1 && data.paymentMode.size() <= 50 &&
+             data.paymentPlan is string && data.paymentPlan.size() >= 1 && data.paymentPlan.size() <= 40 &&
+             data.collectedBy is string && data.collectedBy.size() >= 1 && data.collectedBy.size() <= 80 &&
+             isOptionalString(data, 'installmentMonth', 80) &&
+             isOptionalString(data, 'courseName', 120) &&
+             isOptionalString(data, 'nextDueDate', 20) &&
+             isOptionalString(data, 'remarks', 300) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidFeeInstallment(data) {
+      return data.admissionNo is string && data.admissionNo.size() >= 1 && data.admissionNo.size() <= 60 &&
+             data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 100 &&
+             data.courseName is string && data.courseName.size() >= 1 && data.courseName.size() <= 120 &&
+             data.monthName is string && data.monthName.size() >= 1 && data.monthName.size() <= 80 &&
+             data.installmentNumber is int && data.installmentNumber >= 1 && data.installmentNumber <= 60 &&
+             data.dueDate is string && data.dueDate.size() >= 1 && data.dueDate.size() <= 20 &&
+             data.installmentAmount is number && data.installmentAmount >= 0 &&
+             data.amountPaid is number && data.amountPaid >= 0 &&
+             data.remainingAmount is number && data.remainingAmount >= 0 &&
+             data.status is string && data.status in ['PAID', 'PARTIAL', 'PENDING', 'OVERDUE'] &&
+             isOptionalString(data, 'paymentMode', 50) &&
+             isOptionalString(data, 'lastPaymentDate', 20) &&
+             isOptionalString(data, 'remarks', 300) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidAppNotification(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+             data.message is string && data.message.size() >= 1 && data.message.size() <= 1000 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.targetType is string && data.targetType.size() >= 1 && data.targetType.size() <= 60 &&
+             data.date is string && data.date.size() >= 1 && data.date.size() <= 20 &&
+             data.time is string && data.time.size() >= 1 && data.time.size() <= 20 &&
+             data.sentBy is string && data.sentBy.size() >= 1 && data.sentBy.size() <= 100 &&
+             isOptionalString(data, 'targetValue', 120) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidHoliday(data) {
+      return data.holidayName is string && data.holidayName.size() >= 1 && data.holidayName.size() <= 120 &&
+             data.date is string && data.date.size() >= 1 && data.date.size() <= 20 &&
+             isOptionalString(data, 'description', 300) &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidOfficeSettings(data) {
+      return data.officeName is string && data.officeName.size() >= 1 && data.officeName.size() <= 120 &&
+             data.latitude is number &&
+             data.longitude is number &&
+             data.allowedRadiusMeters is number && data.allowedRadiusMeters > 0 &&
+             data.weeklyOff is string && data.weeklyOff in ['SUNDAY', 'SAT_SUN'] &&
+             data.standardDailyHours is number && data.standardDailyHours > 0 &&
+             data.standardStudentDailyHours is number && data.standardStudentDailyHours > 0 &&
+             isValidTimestamp(data.createdAt) &&
+             (!('updatedAt' in data) || data.updatedAt == null || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidAuditLog(data) {
+      return data.actorId is string && data.actorId.size() >= 1 && data.actorId.size() <= 80 &&
+             data.role is string && data.role.size() >= 1 && data.role.size() <= 40 &&
+             data.action is string && data.action.size() >= 1 && data.action.size() <= 80 &&
+             data.details is string && data.details.size() >= 1 && data.details.size() <= 500 &&
+             data.date is string && data.date.size() >= 1 && data.date.size() <= 20 &&
+             data.time is string && data.time.size() >= 1 && data.time.size() <= 20 &&
+             isOptionalString(data, 'deviceInfo', 120) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // 1. Authenticated User Root Profile
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'email', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'photoUrl', 'activePortalRole', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoUrl', 'activePortalRole', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // 2. Branches
+      match /branches/{branchId} {
+        allow get: if isOwner(userId) && isValidId(branchId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(branchId) &&
+                         incoming().keys().hasAll(['branchName', 'addedBy', 'createdAt']) &&
+                         incoming().keys().hasOnly(['branchName', 'address', 'contactNo', 'addedBy', 'createdAt', 'updatedAt']) &&
+                         isValidBranch(incoming());
+        allow update: if isOwner(userId) && isValidId(branchId) &&
+                         isValidBranch(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['branchName', 'address', 'contactNo', 'addedBy', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(branchId);
+      }
+
+      // 3. Courses
+      match /courses/{courseId} {
+        allow get: if isOwner(userId) && isValidId(courseId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(courseId) &&
+                         incoming().keys().hasAll(['courseName', 'defaultDuration', 'defaultFees', 'addedBy', 'createdAt']) &&
+                         incoming().keys().hasOnly(['courseName', 'defaultDuration', 'defaultFees', 'addedBy', 'createdAt', 'updatedAt']) &&
+                         isValidCourse(incoming());
+        allow update: if isOwner(userId) && isValidId(courseId) &&
+                         isValidCourse(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['courseName', 'defaultDuration', 'defaultFees', 'addedBy', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(courseId);
+      }
+
+      // 4. Employees
+      match /employees/{employeeId} {
+        allow get: if isOwner(userId) && isValidId(employeeId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(employeeId) &&
+                         incoming().keys().hasAll(['employeeId', 'name', 'department', 'branchName', 'dateOfJoining', 'canManageStudents', 'canViewFees', 'canMarkAttendance', 'createdAt']) &&
+                         incoming().keys().hasOnly(['employeeId', 'name', 'contactNo', 'email', 'department', 'branchName', 'dateOfJoining', 'canManageStudents', 'canViewFees', 'canMarkAttendance', 'photoUri', 'createdAt', 'updatedAt']) &&
+                         isValidEmployee(incoming());
+        allow update: if isOwner(userId) && isValidId(employeeId) &&
+                         isValidEmployee(incoming()) &&
+                         incoming().employeeId == existing().employeeId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'contactNo', 'email', 'department', 'branchName', 'dateOfJoining', 'canManageStudents', 'canViewFees', 'canMarkAttendance', 'photoUri', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(employeeId);
+      }
+
+      // 5. Students
+      match /students/{studentId} {
+        allow get: if isOwner(userId) && isValidId(studentId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(studentId) &&
+                         incoming().keys().hasAll(['admissionNo', 'name', 'courseName', 'branchName', 'batchName', 'dateOfJoining', 'courseDuration', 'totalFees', 'paidFees', 'pendingFees', 'paymentPlan', 'installmentCount', 'assignedTeacherId', 'assignedTeacherName', 'portalUserId', 'status', 'createdAt']) &&
+                         incoming().keys().hasOnly(['admissionNo', 'name', 'contactNo', 'address', 'fatherName', 'motherName', 'studentPhotoUri', 'aadhaarCardUri', 'courseName', 'branchName', 'batchName', 'batchTiming', 'dateOfJoining', 'courseDuration', 'totalFees', 'paidFees', 'pendingFees', 'paymentPlan', 'installmentCount', 'assignedTeacherId', 'assignedTeacherName', 'portalUserId', 'nextDueDate', 'monthlyFeeAmount', 'status', 'createdAt', 'updatedAt']) &&
+                         isValidStudent(incoming());
+        allow update: if isOwner(userId) && isValidId(studentId) &&
+                         isValidStudent(incoming()) &&
+                         incoming().admissionNo == existing().admissionNo &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'contactNo', 'address', 'fatherName', 'motherName', 'studentPhotoUri', 'aadhaarCardUri', 'courseName', 'branchName', 'batchName', 'batchTiming', 'dateOfJoining', 'courseDuration', 'totalFees', 'paidFees', 'pendingFees', 'paymentPlan', 'installmentCount', 'assignedTeacherId', 'assignedTeacherName', 'portalUserId', 'nextDueDate', 'monthlyFeeAmount', 'status', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(studentId);
+      }
+
+      // 6. Employee Attendance
+      match /employee_attendance/{recordId} {
+        allow get: if isOwner(userId) && isValidId(recordId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(recordId) &&
+                         incoming().keys().hasAll(['employeeId', 'employeeName', 'department', 'date', 'time', 'status', 'latitude', 'longitude', 'distanceMeters', 'isMockLocation', 'workedMinutes', 'requiredMinutes', 'createdAt']) &&
+                         incoming().keys().hasOnly(['employeeId', 'employeeName', 'department', 'date', 'time', 'status', 'latitude', 'longitude', 'distanceMeters', 'selfieUri', 'isMockLocation', 'deviceModel', 'checkOutTime', 'workedMinutes', 'requiredMinutes', 'notes', 'createdAt', 'updatedAt']) &&
+                         isValidEmployeeAttendance(incoming());
+        allow update: if isOwner(userId) && isValidId(recordId) &&
+                         isValidEmployeeAttendance(incoming()) &&
+                         incoming().employeeId == existing().employeeId &&
+                         incoming().date == existing().date &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['employeeName', 'department', 'time', 'status', 'latitude', 'longitude', 'distanceMeters', 'selfieUri', 'isMockLocation', 'deviceModel', 'checkOutTime', 'workedMinutes', 'requiredMinutes', 'notes', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(recordId);
+      }
+
+      // 7. Student Attendance
+      match /student_attendance/{recordId} {
+        allow get: if isOwner(userId) && isValidId(recordId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(recordId) &&
+                         incoming().keys().hasAll(['admissionNo', 'studentName', 'courseName', 'batchName', 'date', 'status', 'markedByUserId', 'workedMinutes', 'requiredMinutes', 'latitude', 'longitude', 'distanceMeters', 'isMockLocation', 'createdAt']) &&
+                         incoming().keys().hasOnly(['admissionNo', 'studentName', 'courseName', 'batchName', 'date', 'status', 'markedByUserId', 'checkInTime', 'checkOutTime', 'workedMinutes', 'requiredMinutes', 'notes', 'latitude', 'longitude', 'distanceMeters', 'selfieUri', 'isMockLocation', 'deviceModel', 'createdAt', 'updatedAt']) &&
+                         isValidStudentAttendance(incoming());
+        allow update: if isOwner(userId) && isValidId(recordId) &&
+                         isValidStudentAttendance(incoming()) &&
+                         incoming().admissionNo == existing().admissionNo &&
+                         incoming().date == existing().date &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['studentName', 'courseName', 'batchName', 'status', 'markedByUserId', 'checkInTime', 'checkOutTime', 'workedMinutes', 'requiredMinutes', 'notes', 'latitude', 'longitude', 'distanceMeters', 'selfieUri', 'isMockLocation', 'deviceModel', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(recordId);
+      }
+
+      // 8. Fee Payments
+      match /fee_payments/{paymentId} {
+        allow get: if isOwner(userId) && isValidId(paymentId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(paymentId) &&
+                         incoming().keys().hasAll(['receiptNo', 'admissionNo', 'studentName', 'amount', 'paymentDate', 'paymentMode', 'paymentPlan', 'collectedBy', 'createdAt']) &&
+                         incoming().keys().hasOnly(['receiptNo', 'admissionNo', 'studentName', 'amount', 'paymentDate', 'paymentMode', 'paymentPlan', 'installmentMonth', 'courseName', 'nextDueDate', 'collectedBy', 'remarks', 'createdAt', 'updatedAt']) &&
+                         isValidFeePayment(incoming());
+        allow update: if isOwner(userId) && isValidId(paymentId) &&
+                         isValidFeePayment(incoming()) &&
+                         incoming().receiptNo == existing().receiptNo &&
+                         incoming().admissionNo == existing().admissionNo &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['studentName', 'amount', 'paymentDate', 'paymentMode', 'paymentPlan', 'installmentMonth', 'courseName', 'nextDueDate', 'collectedBy', 'remarks', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(paymentId);
+      }
+
+      // 9. Fee Installments
+      match /fee_installments/{installmentId} {
+        allow get: if isOwner(userId) && isValidId(installmentId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(installmentId) &&
+                         incoming().keys().hasAll(['admissionNo', 'studentName', 'courseName', 'monthName', 'installmentNumber', 'dueDate', 'installmentAmount', 'amountPaid', 'remainingAmount', 'status', 'createdAt']) &&
+                         incoming().keys().hasOnly(['admissionNo', 'studentName', 'courseName', 'monthName', 'installmentNumber', 'dueDate', 'installmentAmount', 'amountPaid', 'remainingAmount', 'status', 'paymentMode', 'lastPaymentDate', 'remarks', 'createdAt', 'updatedAt']) &&
+                         isValidFeeInstallment(incoming());
+        allow update: if isOwner(userId) && isValidId(installmentId) &&
+                         isValidFeeInstallment(incoming()) &&
+                         incoming().admissionNo == existing().admissionNo &&
+                         incoming().installmentNumber == existing().installmentNumber &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['studentName', 'courseName', 'monthName', 'dueDate', 'installmentAmount', 'amountPaid', 'remainingAmount', 'status', 'paymentMode', 'lastPaymentDate', 'remarks', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(installmentId);
+      }
+
+      // 10. Notifications
+      match /notifications/{notificationId} {
+        allow get: if isOwner(userId) && isValidId(notificationId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(notificationId) &&
+                         incoming().keys().hasAll(['title', 'message', 'category', 'targetType', 'date', 'time', 'sentBy', 'createdAt']) &&
+                         incoming().keys().hasOnly(['title', 'message', 'category', 'targetType', 'targetValue', 'date', 'time', 'sentBy', 'createdAt', 'updatedAt']) &&
+                         isValidAppNotification(incoming());
+        allow update: if isOwner(userId) && isValidId(notificationId) &&
+                         isValidAppNotification(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'message', 'category', 'targetType', 'targetValue', 'date', 'time', 'sentBy', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(notificationId);
+      }
+
+      // 11. Holidays
+      match /holidays/{holidayId} {
+        allow get: if isOwner(userId) && isValidId(holidayId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(holidayId) &&
+                         incoming().keys().hasAll(['holidayName', 'date', 'createdAt']) &&
+                         incoming().keys().hasOnly(['holidayName', 'date', 'description', 'createdAt', 'updatedAt']) &&
+                         isValidHoliday(incoming());
+        allow update: if isOwner(userId) && isValidId(holidayId) &&
+                         isValidHoliday(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['holidayName', 'date', 'description', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(holidayId);
+      }
+
+      // 12. Office Settings
+      match /office_settings/{settingId} {
+        allow get: if isOwner(userId) && isValidId(settingId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(settingId) &&
+                         incoming().keys().hasAll(['officeName', 'latitude', 'longitude', 'allowedRadiusMeters', 'weeklyOff', 'standardDailyHours', 'standardStudentDailyHours', 'createdAt']) &&
+                         incoming().keys().hasOnly(['officeName', 'latitude', 'longitude', 'allowedRadiusMeters', 'weeklyOff', 'standardDailyHours', 'standardStudentDailyHours', 'createdAt', 'updatedAt']) &&
+                         isValidOfficeSettings(incoming());
+        allow update: if isOwner(userId) && isValidId(settingId) &&
+                         isValidOfficeSettings(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['officeName', 'latitude', 'longitude', 'allowedRadiusMeters', 'weeklyOff', 'standardDailyHours', 'standardStudentDailyHours', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(settingId);
+      }
+
+      // 13. Audit Logs (Append-only immutable audit trail)
+      match /audit_logs/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(logId) &&
+                         incoming().keys().hasAll(['actorId', 'role', 'action', 'details', 'date', 'time', 'createdAt']) &&
+                         incoming().keys().hasOnly(['actorId', 'role', 'action', 'details', 'date', 'time', 'deviceInfo', 'createdAt']) &&
+                         isValidAuditLog(incoming());
+        allow update, delete: if false;
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "London Academy Connect",
+  "description": "Comprehensive Student & Employee Management system for London Academy Connect with role-based access, GPS & selfie attendance, fee tracking, reports, and administrative controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
