@@ -34,6 +34,15 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platforms;android-36.1" || sdkmanager "platforms;android-36" || true
 
+      - name: Compute Build Version
+        shell: bash
+        run: |
+          APP_VERSION_CODE=$((10 + GITHUB_RUN_NUMBER))
+          APP_VERSION_NAME="1.0.${GITHUB_RUN_NUMBER}"
+          echo "APP_VERSION_CODE=${APP_VERSION_CODE}" >> "$GITHUB_ENV"
+          echo "APP_VERSION_NAME=${APP_VERSION_NAME}" >> "$GITHUB_ENV"
+          echo "Building version ${APP_VERSION_NAME} (versionCode=${APP_VERSION_CODE})"
+
       - name: Ensure debug keystore exists
         shell: bash
         env:
@@ -41,14 +50,23 @@ jobs:
         run: |
           set -e
           rm -f debug.keystore
+          SIGNING_SOURCE="ephemeral"
           if [ -s debug.keystore.base64 ]; then
-            tr -d '\r\n ' < debug.keystore.base64 | base64 -d > debug.keystore || rm -f debug.keystore
+            if tr -d '\r\n ' < debug.keystore.base64 | base64 -d > debug.keystore && keytool -list -keystore debug.keystore -storepass android >/dev/null 2>&1; then
+              SIGNING_SOURCE="repo-file"
+            else
+              rm -f debug.keystore
+            fi
           fi
           if [ ! -s debug.keystore ] && [ -n "${DEBUG_KEYSTORE_BASE64:-}" ]; then
-            printf '%s' "$DEBUG_KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > debug.keystore || rm -f debug.keystore
+            if printf '%s' "$DEBUG_KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > debug.keystore && keytool -list -keystore debug.keystore -storepass android >/dev/null 2>&1; then
+              SIGNING_SOURCE="github-secret"
+            else
+              rm -f debug.keystore
+            fi
           fi
-          if [ ! -s debug.keystore ] || ! keytool -list -keystore debug.keystore -storepass android >/dev/null 2>&1; then
-            rm -f debug.keystore
+          if [ ! -s debug.keystore ]; then
+            echo "::warning::DEBUG_KEYSTORE_BASE64 secret is NOT set! Generating a temporary signing key. Phones with an older build installed will show 'App not installed' unless you add DEBUG_KEYSTORE_BASE64 in GitHub Secrets (Settings -> Secrets and variables -> Actions)."
             keytool -genkeypair \
               -noprompt \
               -keystore debug.keystore \
@@ -61,8 +79,10 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
           chmod 600 debug.keystore
-          ls -l debug.keystore
-          keytool -list -keystore debug.keystore -storepass android | grep -E "Alias name|SHA1" || true
+          SHA1=$(keytool -list -v -keystore debug.keystore -storepass android -alias androiddebugkey 2>/dev/null | grep -m1 "SHA1:" | awk '{print $2}')
+          echo "SIGNING_SOURCE=${SIGNING_SOURCE}" >> "$GITHUB_ENV"
+          echo "SIGNING_SHA1=${SHA1:-unknown}" >> "$GITHUB_ENV"
+          echo "Keystore ready (source=${SIGNING_SOURCE}, SHA1=${SHA1:-unknown})"
 
       - name: Ensure google-services.json
         shell: bash
@@ -96,23 +116,70 @@ jobs:
           JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
           GRADLE_OPTS: -Djava.awt.headless=true -Dorg.gradle.daemon=false
           APK_UPDATE_URL: ${{ vars.GDRIVE_APK_URL || format('https://github.com/{0}/releases/download/apk-latest/app-debug.apk', github.repository) }}
+          APK_VERSION_INFO_URL: ${{ format('https://github.com/{0}/releases/download/apk-latest/version.json', github.repository) }}
         run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Generate Release Metadata (version.json)
+        shell: bash
+        env:
+          APK_UPDATE_URL: ${{ vars.GDRIVE_APK_URL || format('https://github.com/{0}/releases/download/apk-latest/app-debug.apk', github.repository) }}
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%s 2>/dev/null || echo "Latest update")
+          export COMMIT_MSG
+          python3 - <<'PY'
+          import json, os, datetime
+          data = {
+              "versionCode": int(os.environ["APP_VERSION_CODE"]),
+              "versionName": os.environ["APP_VERSION_NAME"],
+              "downloadUrl": os.environ["APK_UPDATE_URL"],
+              "releaseNotes": f"v{os.environ['APP_VERSION_NAME']}: {os.environ.get('COMMIT_MSG', 'Latest update').strip()}",
+              "publishedAt": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "signingSource": os.environ.get("SIGNING_SOURCE", "unknown"),
+              "signingSha1": os.environ.get("SIGNING_SHA1", "unknown"),
+          }
+          with open("version.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2)
+          print(json.dumps(data, indent=2))
+          PY
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v6
         with:
           name: london-academy-connect-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            version.json
           if-no-files-found: error
 
-      - name: Publish Direct APK Download in GitHub Releases
-        continue-on-error: true
+      - name: Publish Direct APK & Update Feed in GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="apk-latest"
-          gh release delete "$TAG" --yes --cleanup-tag || true
-          gh release create "$TAG" app/build/outputs/apk/debug/app-debug.apk \
-            --target "${{ github.sha }}" \
-            --title "London Academy Connect (Debug APK)" \
-            --notes "Automated Debug APK build from commit ${{ github.sha }}"
+          NOTES="Version ${APP_VERSION_NAME} (Build ${APP_VERSION_CODE}) — Signing: ${SIGNING_SOURCE} (${SIGNING_SHA1})"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" app/build/outputs/apk/debug/app-debug.apk version.json --clobber
+            gh release edit "$TAG" \
+              --target "${{ github.sha }}" \
+              --title "London Academy Connect v${APP_VERSION_NAME}" \
+              --notes "$NOTES"
+          else
+            gh release create "$TAG" app/build/outputs/apk/debug/app-debug.apk version.json \
+              --target "${{ github.sha }}" \
+              --title "London Academy Connect v${APP_VERSION_NAME}" \
+              --notes "$NOTES"
+          fi
+
+      - name: Write Build Summary
+        shell: bash
+        run: |
+          {
+            echo "## London Academy Connect APK Ready"
+            echo "- **Version**: \`v${APP_VERSION_NAME}\` (Build \`${APP_VERSION_CODE}\`)"
+            echo "- **Signing Key Source**: \`${SIGNING_SOURCE}\` (SHA-1: \`${SIGNING_SHA1}\`)"
+            echo "- **Direct APK Link**: https://github.com/${GITHUB_REPOSITORY}/releases/download/apk-latest/app-debug.apk"
+            if [ "${SIGNING_SOURCE}" = "ephemeral" ]; then
+              echo ""
+              echo "> **Action Required for In-Place Updates & Google Sign-In:** Add \`DEBUG_KEYSTORE_BASE64\` in **Settings -> Secrets and variables -> Actions** so every build uses the same signing key."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

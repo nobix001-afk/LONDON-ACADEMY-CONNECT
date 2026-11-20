@@ -18,12 +18,28 @@ android {
     applicationId = "com.aistudio.edumanage.qnvxkp"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    val ciVersionCode = providers.environmentVariable("APP_VERSION_CODE")
+      .map { it.trim().toIntOrNull() ?: 1 }
+      .getOrElse(1)
+    val ciVersionName = providers.environmentVariable("APP_VERSION_NAME")
+      .map { it.trim().ifBlank { "1.0" } }
+      .getOrElse("1.0")
+    versionCode = ciVersionCode
+    versionName = ciVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    val apkUpdateUrl = providers.environmentVariable("APK_UPDATE_URL").getOrElse("").replace("\"", "\\\"")
+    val defaultApkUrl = "https://github.com/nobix001-afk/LONDON-ACADEMY-CONNECT/releases/download/apk-latest/app-debug.apk"
+    val defaultVersionInfoUrl = "https://github.com/nobix001-afk/LONDON-ACADEMY-CONNECT/releases/download/apk-latest/version.json"
+    val apkUpdateUrl = providers.environmentVariable("APK_UPDATE_URL")
+      .map { it.trim().ifBlank { defaultApkUrl } }
+      .getOrElse(defaultApkUrl)
+      .replace("\"", "\\\"")
+    val apkVersionInfoUrl = providers.environmentVariable("APK_VERSION_INFO_URL")
+      .map { it.trim().ifBlank { defaultVersionInfoUrl } }
+      .getOrElse(defaultVersionInfoUrl)
+      .replace("\"", "\\\"")
     buildConfigField("String", "APK_UPDATE_URL", "\"$apkUpdateUrl\"")
+    buildConfigField("String", "APK_VERSION_INFO_URL", "\"$apkVersionInfoUrl\"")
   }
 
   signingConfigs {

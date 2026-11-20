@@ -20,7 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,9 +34,13 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.data.AppDatabase
 import com.example.data.AppMediaStorage
+import com.example.data.AppUpdateCheckResult
+import com.example.data.AppUpdateChecker
+import com.example.data.AppUpdateInfo
 import com.example.data.firebase.FirestoreAcademyRepository
 import com.example.data.firebase.authStateFlow
 import com.example.data.repository.EduRepository
+import com.example.ui.components.AppUpdateDialog
 import com.example.ui.screens.AdminDashboardScreen
 import com.example.ui.screens.EmployeeDashboardScreen
 import com.example.ui.screens.GoogleSignInScreen
@@ -59,6 +65,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme(dynamicColor = false) {
                 val context = LocalContext.current
+                var pendingUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
+
+                LaunchedEffect(Unit) {
+                    val result = AppUpdateChecker.checkForUpdate()
+                    if (result is AppUpdateCheckResult.UpdateAvailable) {
+                        pendingUpdate = result.info
+                    }
+                }
+
                 val isFirebaseReady = remember(context) {
                     FirebaseApp.getApps(context).isNotEmpty() ||
                         runCatching { FirebaseApp.initializeApp(context) != null }.getOrDefault(false)
@@ -101,6 +116,17 @@ class MainActivity : ComponentActivity() {
                     } else {
                         AuthenticatedAcademyApp(firebaseUser = activeUser)
                     }
+                }
+
+                pendingUpdate?.let { updateInfo ->
+                    AppUpdateDialog(
+                        updateInfo = updateInfo,
+                        onUpdateNow = {
+                            AppUpdateChecker.openUpdateLink(context, updateInfo.downloadUrl)
+                            pendingUpdate = null
+                        },
+                        onDismiss = { pendingUpdate = null }
+                    )
                 }
             }
         }

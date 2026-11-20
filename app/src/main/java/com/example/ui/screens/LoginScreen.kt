@@ -35,7 +35,11 @@ import android.net.Uri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.BuildConfig
 import com.example.R
+import com.example.data.AppUpdateCheckResult
+import com.example.data.AppUpdateChecker
+import com.example.data.AppUpdateInfo
 import com.example.data.firebase.GoogleAuthManager
+import com.example.ui.components.AppUpdateDialog
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.EduViewModel
 import com.google.firebase.FirebaseApp
@@ -53,6 +57,8 @@ fun LoginScreen(viewModel: EduViewModel) {
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
     var showFirebaseDialog by remember { mutableStateOf(false) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
 
     val scrollState = rememberScrollState()
 
@@ -417,12 +423,28 @@ fun LoginScreen(viewModel: EduViewModel) {
             if (BuildConfig.APK_UPDATE_URL.isNotBlank()) {
                 OutlinedButton(
                     onClick = {
-                        runCatching {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.APK_UPDATE_URL)))
-                        }.onFailure {
-                            viewModel.showMessage("Open link: ${BuildConfig.APK_UPDATE_URL}")
+                        if (isCheckingUpdate) return@OutlinedButton
+                        isCheckingUpdate = true
+                        coroutineScope.launch {
+                            when (val res = AppUpdateChecker.checkForUpdate()) {
+                                is AppUpdateCheckResult.UpdateAvailable -> {
+                                    availableUpdate = res.info
+                                }
+                                is AppUpdateCheckResult.UpToDate -> {
+                                    viewModel.showMessage(
+                                        "You already have the latest version (v${res.currentVersionName}, Build #${res.currentVersionCode})."
+                                    )
+                                }
+                                is AppUpdateCheckResult.Error -> {
+                                    if (!AppUpdateChecker.openUpdateLink(context)) {
+                                        viewModel.showMessage("Open link: ${BuildConfig.APK_UPDATE_URL}")
+                                    }
+                                }
+                            }
+                            isCheckingUpdate = false
                         }
                     },
+                    enabled = !isCheckingUpdate,
                     modifier = Modifier
                         .heightIn(min = 48.dp)
                         .testTag("download_latest_apk_button"),
@@ -432,10 +454,21 @@ fun LoginScreen(viewModel: EduViewModel) {
                 ) {
                     Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Download Latest App Update", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = if (isCheckingUpdate) "Checking for Updates..." else "Check / Download Latest Update",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Version ${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.75f)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
             }
 
             Text(
@@ -468,6 +501,17 @@ fun LoginScreen(viewModel: EduViewModel) {
             viewModel = viewModel,
             cloudSyncStatus = cloudSyncStatus,
             onDismiss = { showFirebaseDialog = false }
+        )
+    }
+
+    availableUpdate?.let { updateInfo ->
+        AppUpdateDialog(
+            updateInfo = updateInfo,
+            onUpdateNow = {
+                AppUpdateChecker.openUpdateLink(context, updateInfo.downloadUrl)
+                availableUpdate = null
+            },
+            onDismiss = { availableUpdate = null }
         )
     }
 }
@@ -528,6 +572,7 @@ fun FirebaseConnectionDialog(
 
                 Text("Project ID: ${projectId.ifBlank { "Configured" }}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Text("Database ID: ${databaseId.ifBlank { "Configured" }}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("App Version: v${BuildConfig.VERSION_NAME} (Build #${BuildConfig.VERSION_CODE})", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Google Account: ${viewModel.firebaseEmail.ifBlank { viewModel.firebaseDisplayName }}", fontSize = 12.sp)
                 Text("Firebase UID: ${viewModel.firebaseUserId}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Sync Status: $cloudSyncStatus", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PrimaryBlue)
